@@ -15,6 +15,18 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Search for a cover image URL by game title
+ */
+export const SearchGameCoverQueryParams = zod.object({
+  title: zod.coerce.string(),
+});
+
+export const SearchGameCoverResponse = zod.object({
+  coverUrl: zod.string().nullable(),
+  title: zod.string().nullish(),
+});
+
+/**
  * @summary List all games
  */
 export const ListGamesQueryParams = zod.object({
@@ -160,7 +172,7 @@ export const GetGameStatsResponse = zod.object({
   total: zod.number(),
   played: zod.number(),
   playing: zod.number(),
-  backlog: zod.number(),
+  halted: zod.number().optional(),
   totalHours: zod.number(),
   averageRating: zod.number().nullish(),
   topGenres: zod.array(

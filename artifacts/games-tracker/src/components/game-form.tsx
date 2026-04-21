@@ -1,5 +1,7 @@
-import { Game, GameStatus, CreateGameInput, UpdateGameInput, useCreateGame, useUpdateGame, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, getGetGameQueryKey } from "@workspace/api-client-react";
+import { Game, GameStatus, CreateGameInput, UpdateGameInput, useCreateGame, useUpdateGame, searchGameCover, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, getGetGameQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Sparkles } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +43,9 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
   const updateGame = useUpdateGame();
 
   const isEditing = !!game;
+  const [coverFetching, setCoverFetching] = useState(false);
+  const userTouchedCoverRef = useRef(false);
+  const lastFetchedTitleRef = useRef<string>("");
 
   const form = useForm<GameFormValues>({
     resolver: zodResolver(gameSchema),
@@ -57,6 +62,42 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
       finishedAt: game?.finishedAt?.split('T')[0] || "",
     },
   });
+
+  const watchedTitle = form.watch("title");
+  const watchedCoverUrl = form.watch("coverUrl");
+
+  useEffect(() => {
+    if (!open) return;
+    const title = (watchedTitle || "").trim();
+    if (title.length < 2) return;
+    if (userTouchedCoverRef.current && watchedCoverUrl) return;
+    if (isEditing && game?.coverUrl && !userTouchedCoverRef.current && (watchedCoverUrl === game.coverUrl)) return;
+    if (lastFetchedTitleRef.current.toLowerCase() === title.toLowerCase()) return;
+
+    const handle = setTimeout(async () => {
+      lastFetchedTitleRef.current = title;
+      setCoverFetching(true);
+      try {
+        const result = await searchGameCover({ title });
+        if (result?.coverUrl && !userTouchedCoverRef.current) {
+          form.setValue("coverUrl", result.coverUrl, { shouldDirty: true });
+        }
+      } catch {
+        // Silent failure — user can paste a URL manually
+      } finally {
+        setCoverFetching(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handle);
+  }, [watchedTitle, open, isEditing, game?.coverUrl, watchedCoverUrl, form]);
+
+  useEffect(() => {
+    if (open) {
+      userTouchedCoverRef.current = false;
+      lastFetchedTitleRef.current = "";
+    }
+  }, [open]);
 
   const onSubmit = async (data: GameFormValues) => {
     try {
@@ -235,10 +276,35 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
               name="coverUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-widest font-mono text-muted-foreground">Cover Image URL</FormLabel>
+                  <FormLabel className="text-xs uppercase tracking-widest font-mono text-muted-foreground flex items-center justify-between">
+                    <span>Cover Image URL</span>
+                    {coverFetching ? (
+                      <span className="flex items-center gap-1 text-primary normal-case tracking-normal">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Finding cover...
+                      </span>
+                    ) : field.value ? (
+                      <span className="flex items-center gap-1 text-emerald-400 normal-case tracking-normal">
+                        <Sparkles className="w-3 h-3" /> Auto-filled
+                      </span>
+                    ) : null}
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." className="bg-background/50 border-white/10" {...field} value={field.value || ""} />
+                    <Input
+                      placeholder="https://... (auto-filled from title)"
+                      className="bg-background/50 border-white/10"
+                      {...field}
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        userTouchedCoverRef.current = true;
+                        field.onChange(e);
+                      }}
+                    />
                   </FormControl>
+                  {field.value && (
+                    <div className="mt-2 w-24 aspect-[3/4] rounded-md overflow-hidden border border-white/10 bg-muted/30">
+                      <img src={field.value} alt="Cover preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.2"; }} />
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

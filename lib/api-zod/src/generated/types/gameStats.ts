@@ -12,7 +12,7 @@ export interface GameStats {
   total: number;
   played: number;
   playing: number;
-  backlog: number;
+  halted?: number;
   totalHours: number;
   averageRating?: number | null;
   topGenres: GameStatsTopGenresItem[];

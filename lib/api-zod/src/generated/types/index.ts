@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./coverSearchResult";
 export * from "./createGameInput";
 export * from "./game";
 export * from "./gameStats";
@@ -14,4 +15,5 @@ export * from "./gameStatsTopPlatformsItem";
 export * from "./gameStatus";
 export * from "./healthStatus";
 export * from "./listGamesParams";
+export * from "./searchGameCoverParams";
 export * from "./updateGameInput";

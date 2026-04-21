@@ -26,6 +26,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /games/cover-search:
+    get:
+      operationId: searchGameCover
+      tags: [games]
+      summary: Search for a cover image URL by game title
+      parameters:
+        - in: query
+          name: title
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cover suggestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverSearchResult"
+
   /games:
     get:
       operationId: listGames
@@ -275,6 +294,17 @@ components:
           format: date
           nullable: true
 
+    CoverSearchResult:
+      type: object
+      properties:
+        coverUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+      required: [coverUrl]
+
     GameStats:
       type: object
       properties:
@@ -284,7 +314,7 @@ components:
           type: integer
         playing:
           type: integer
-        backlog:
+        halted:
           type: integer
         totalHours:
           type: number

@@ -17,11 +17,13 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CoverSearchResult,
   CreateGameInput,
   Game,
   GameStats,
   HealthStatus,
   ListGamesParams,
+  SearchGameCoverParams,
   UpdateGameInput,
 } from "./api.schemas";
 
@@ -101,6 +103,100 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Search for a cover image URL by game title
+ */
+export const getSearchGameCoverUrl = (params: SearchGameCoverParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/games/cover-search?${stringifiedParams}`
+    : `/api/games/cover-search`;
+};
+
+export const searchGameCover = async (
+  params: SearchGameCoverParams,
+  options?: RequestInit,
+): Promise<CoverSearchResult> => {
+  return customFetch<CoverSearchResult>(getSearchGameCoverUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchGameCoverQueryKey = (params?: SearchGameCoverParams) => {
+  return [`/api/games/cover-search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchGameCoverQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchGameCover>>,
+  TError = ErrorType<unknown>,
+>(
+  params: SearchGameCoverParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchGameCover>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchGameCoverQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchGameCover>>> = ({
+    signal,
+  }) => searchGameCover(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchGameCover>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchGameCoverQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchGameCover>>
+>;
+export type SearchGameCoverQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Search for a cover image URL by game title
+ */
+
+export function useSearchGameCover<
+  TData = Awaited<ReturnType<typeof searchGameCover>>,
+  TError = ErrorType<unknown>,
+>(
+  params: SearchGameCoverParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchGameCover>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchGameCoverQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

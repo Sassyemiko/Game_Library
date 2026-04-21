@@ -13,12 +13,38 @@ import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 
+router.get("/games/cover-search", async (req, res) => {
+  const title = typeof req.query.title === "string" ? req.query.title.trim() : "";
+  if (!title) {
+    res.json({ coverUrl: null, title: null });
+    return;
+  }
+  try {
+    const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(title)}&l=english&cc=us`;
+    const r = await fetch(url, { headers: { "User-Agent": "GamesTracker/1.0" } });
+    if (!r.ok) {
+      res.json({ coverUrl: null, title: null });
+      return;
+    }
+    const data = (await r.json()) as { items?: Array<{ id: number; name: string; tiny_image?: string }> };
+    const first = data.items?.[0];
+    if (!first) {
+      res.json({ coverUrl: null, title: null });
+      return;
+    }
+    const coverUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${first.id}/library_600x900.jpg`;
+    res.json({ coverUrl, title: first.name });
+  } catch {
+    res.json({ coverUrl: null, title: null });
+  }
+});
+
 type GameDto = {
   id: string;
   title: string;
   platform: string | null;
   genre: string | null;
-  status: "played" | "playing" | "backlog";
+  status: "played" | "playing" | "halted";
   rating: number | null;
   coverUrl: string | null;
   notes: string | null;
@@ -35,7 +61,7 @@ function toDto(row: GameRow): GameDto {
     title: row.title,
     platform: row.platform,
     genre: row.genre,
-    status: row.status as "played" | "playing" | "backlog",
+    status: row.status as "played" | "playing" | "halted",
     rating: row.rating,
     coverUrl: row.coverUrl,
     notes: row.notes,
@@ -61,7 +87,7 @@ router.get("/games/stats", async (_req, res) => {
   const total = rows.length;
   const played = rows.filter((r) => r.status === "played").length;
   const playing = rows.filter((r) => r.status === "playing").length;
-  const backlog = rows.filter((r) => r.status === "backlog").length;
+  const halted = rows.filter((r) => r.status === "halted").length;
   const totalHours = rows.reduce((s, r) => s + (r.hoursPlayed ?? 0), 0);
   const ratings = rows.map((r) => r.rating).filter((r): r is number => r != null);
   const averageRating =
@@ -89,7 +115,7 @@ router.get("/games/stats", async (_req, res) => {
     total,
     played,
     playing,
-    backlog,
+    halted,
     totalHours: Number(totalHours.toFixed(2)),
     averageRating,
     topGenres,

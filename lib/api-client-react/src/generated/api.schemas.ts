@@ -77,6 +77,11 @@ export interface UpdateGameInput {
   finishedAt?: string | null;
 }
 
+export interface CoverSearchResult {
+  coverUrl: string | null;
+  title?: string | null;
+}
+
 export type GameStatsTopGenresItem = {
   genre: string;
   count: number;
@@ -91,12 +96,16 @@ export interface GameStats {
   total: number;
   played: number;
   playing: number;
-  backlog: number;
+  halted?: number;
   totalHours: number;
   averageRating?: number | null;
   topGenres: GameStatsTopGenresItem[];
   topPlatforms: GameStatsTopPlatformsItem[];
 }
+
+export type SearchGameCoverParams = {
+  title: string;
+};
 
 export type ListGamesParams = {
   status?: GameStatus;
