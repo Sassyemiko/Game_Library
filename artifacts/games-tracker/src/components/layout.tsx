@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Gamepad2, Home } from "lucide-react";
+import { Gamepad2, Home, Trophy, Play, PauseOctagon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -12,6 +12,10 @@ export function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
+    { href: "/completed", icon: Trophy, label: "Completed" },
+    { href: "/ongoing", icon: Play, label: "Ongoing" },
+    { href: "/halted", icon: PauseOctagon, label: "Halted" },
+    { href: "/recommended", icon: Sparkles, label: "Recommended" },
   ];
 
   return (

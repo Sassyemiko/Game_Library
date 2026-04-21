@@ -7,7 +7,7 @@
  */
 
 /**
- * played = finished/done. playing = currently playing. backlog = will play.
+ * played = finished/done. playing = currently playing. backlog = will play. halted = paused/dropped.
 
  */
 export type GameStatus = (typeof GameStatus)[keyof typeof GameStatus];
@@ -16,4 +16,5 @@ export const GameStatus = {
   played: "played",
   playing: "playing",
   backlog: "backlog",
+  halted: "halted",
 } as const;

@@ -14,12 +14,14 @@ const statusColors: Record<GameStatus, { bg: string; text: string; border: strin
   playing: { bg: "bg-primary/20", text: "text-primary", border: "border-primary/30" },
   played: { bg: "bg-emerald-500/20", text: "text-emerald-400", border: "border-emerald-500/30" },
   backlog: { bg: "bg-amber-500/20", text: "text-amber-400", border: "border-amber-500/30" },
+  halted: { bg: "bg-rose-500/20", text: "text-rose-400", border: "border-rose-500/30" },
 };
 
 const statusLabels: Record<GameStatus, string> = {
-  playing: "Now Playing",
+  playing: "Ongoing",
   played: "Completed",
   backlog: "Backlog",
+  halted: "Halted",
 };
 
 export function GameCard({ game }: GameCardProps) {
