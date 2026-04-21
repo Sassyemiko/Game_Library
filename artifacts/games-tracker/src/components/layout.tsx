@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { Gamepad2, Library, List, CheckCircle, Home, LogOut } from "lucide-react";
+import { Gamepad2, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,9 +15,9 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row relative">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 border-r bg-card/50 backdrop-blur-sm px-4 py-6 z-10 relative">
+      <aside className="hidden md:flex flex-col w-64 border-r bg-card/50 backdrop-blur-md px-4 py-6 z-10 relative">
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
             <Gamepad2 className="w-6 h-6" />
@@ -41,6 +42,13 @@ export function Layout({ children }: LayoutProps) {
             </Link>
           ))}
         </nav>
+
+        <div className="pt-4 border-t border-border/50 flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground px-2">
+            Theme
+          </span>
+          <ThemeToggle />
+        </div>
       </aside>
 
       {/* Header - Mobile */}
@@ -53,14 +61,11 @@ export function Layout({ children }: LayoutProps) {
             <h1 className="font-sans font-bold text-lg tracking-tight">Nexus</h1>
           </div>
         </Link>
+        <ThemeToggle />
       </header>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-x-hidden relative">
-        {/* Subtle background decoration */}
-        <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/5 rounded-full blur-[120px] pointer-events-none translate-y-1/3 -translate-x-1/4" />
-        
         <div className="flex-1 p-4 md:p-8 z-10">
           {children}
         </div>
