@@ -12,6 +12,9 @@ import CategoryPage from "@/pages/category";
 import Landing from "@/pages/landing";
 import { ThemeProvider } from "@/components/theme-provider";
 import { DynamicBackground } from "@/components/dynamic-background";
+import { installGuestFetchHeader, isGuestMode } from "@/lib/guest-mode";
+
+installGuestFetchHeader();
 
 const queryClient = new QueryClient();
 
@@ -100,6 +103,7 @@ function SignUpPage() {
 }
 
 function HomeRedirect() {
+  if (isGuestMode()) return <Home />;
   return (
     <>
       <Show when="signed-in">
@@ -113,6 +117,7 @@ function HomeRedirect() {
 }
 
 function Protected({ children }: { children: React.ReactNode }) {
+  if (isGuestMode()) return <>{children}</>;
   return (
     <>
       <Show when="signed-in">{children}</Show>
