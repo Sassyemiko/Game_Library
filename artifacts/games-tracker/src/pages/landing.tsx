@@ -1,15 +1,12 @@
 import { SignInButton, SignUpButton } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Gamepad2, Sparkles, Trophy, Library, ArrowRight, Eye } from "lucide-react";
-import { useLocation } from "wouter";
 import { setGuestMode } from "@/lib/guest-mode";
 
 export default function Landing() {
-  const [, setLocation] = useLocation();
   const enterGuest = () => {
     setGuestMode(true);
-    setLocation("/");
-    window.location.reload();
+    window.location.href = import.meta.env.BASE_URL;
   };
   return (
     <div className="min-h-[100dvh] flex flex-col">
@@ -64,15 +61,17 @@ export default function Landing() {
                 I already have an account
               </Button>
             </SignInButton>
+            <Button
+              type="button"
+              size="lg"
+              variant="ghost"
+              onClick={enterGuest}
+              className="text-muted-foreground hover:text-primary hover:bg-white/5 text-base"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Preview without signing in
+            </Button>
           </div>
-
-          <button
-            onClick={enterGuest}
-            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Eye className="w-3 h-3" />
-            Preview without signing in
-          </button>
 
           {/* Feature row */}
           <div className="grid md:grid-cols-3 gap-4 pt-12">
