@@ -16,7 +16,7 @@ const gameSchema = z.object({
   title: z.string().min(1, "Title is required"),
   platform: z.string().optional(),
   genre: z.string().optional(),
-  status: z.enum(["played", "playing", "backlog", "halted"]),
+  status: z.enum(["played", "playing", "halted"]),
   rating: z.number().min(1).max(10).optional().nullable(),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   notes: z.string().optional(),
@@ -48,7 +48,7 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
       title: game?.title || "",
       platform: game?.platform || "",
       genre: game?.genre || "",
-      status: game?.status || "backlog",
+      status: game?.status || "playing",
       rating: game?.rating || null,
       coverUrl: game?.coverUrl || "",
       notes: game?.notes || "",
@@ -139,7 +139,6 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="playing">Ongoing</SelectItem>
-                        <SelectItem value="backlog">Backlog</SelectItem>
                         <SelectItem value="played">Completed</SelectItem>
                         <SelectItem value="halted">Halted</SelectItem>
                       </SelectContent>

@@ -151,9 +151,9 @@ components:
 
     GameStatus:
       type: string
-      enum: [played, playing, backlog, halted]
+      enum: [played, playing, halted]
       description: |
-        played = finished/done. playing = currently playing. backlog = will play. halted = paused/dropped.
+        played = finished/done. playing = currently playing. halted = paused/dropped.
 
     Game:
       type: object

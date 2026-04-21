@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
  * @summary List all games
  */
 export const ListGamesQueryParams = zod.object({
-  status: zod.enum(["played", "playing", "backlog", "halted"]).optional(),
+  status: zod.enum(["played", "playing", "halted"]).optional(),
   search: zod.coerce.string().optional(),
 });
 
@@ -30,9 +30,9 @@ export const ListGamesResponseItem = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(listGamesResponseRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
@@ -56,9 +56,9 @@ export const CreateGameBody = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(createGameBodyRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
@@ -83,9 +83,9 @@ export const GetGameResponse = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(getGameResponseRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
@@ -111,10 +111,10 @@ export const UpdateGameBody = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .optional()
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(updateGameBodyRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
@@ -132,9 +132,9 @@ export const UpdateGameResponse = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(updateGameResponseRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
@@ -188,9 +188,9 @@ export const GetRecentActivityResponseItem = zod.object({
   platform: zod.string().nullish(),
   genre: zod.string().nullish(),
   status: zod
-    .enum(["played", "playing", "backlog", "halted"])
+    .enum(["played", "playing", "halted"])
     .describe(
-      "played = finished\/done. playing = currently playing. backlog = will play. halted = paused\/dropped.\n",
+      "played = finished\/done. playing = currently playing. halted = paused\/dropped.\n",
     ),
   rating: zod.number().min(1).max(getRecentActivityResponseRatingMax).nullish(),
   coverUrl: zod.string().nullish(),
