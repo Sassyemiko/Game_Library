@@ -154,9 +154,20 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs uppercase tracking-widest font-mono text-muted-foreground">Platform</FormLabel>
-                    <FormControl>
-                      <Input placeholder="PC, PS5, Switch..." className="bg-background/50 border-white/10" {...field} value={field.value || ""} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger className="bg-background/50 border-white/10">
+                          <SelectValue placeholder="Select platform" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="PC">PC</SelectItem>
+                        <SelectItem value="PS4">PS4</SelectItem>
+                        <SelectItem value="PS5">PS5</SelectItem>
+                        <SelectItem value="Xbox 360">Xbox 360</SelectItem>
+                        <SelectItem value="PSP">PSP</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
