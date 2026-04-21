@@ -5,7 +5,9 @@
  * API specification for the Games Tracker
  * OpenAPI spec version: 0.1.0
  */
+import type { GameStatus } from "./gameStatus";
 
-export interface HealthStatus {
-  status: string;
-}
+export type ListGamesParams = {
+  status?: GameStatus;
+  search?: string;
+};

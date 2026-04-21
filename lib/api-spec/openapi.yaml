@@ -3,20 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for the Games Tracker
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: games
+    description: Game library operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +25,121 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /games:
+    get:
+      operationId: listGames
+      tags: [games]
+      summary: List all games
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/GameStatus"
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Game"
+    post:
+      operationId: createGame
+      tags: [games]
+      summary: Add a new game to the library
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGameInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+
+  /games/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getGame
+      tags: [games]
+      summary: Get a single game
+      responses:
+        "200":
+          description: Game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+    patch:
+      operationId: updateGame
+      tags: [games]
+      summary: Update a game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGameInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+    delete:
+      operationId: deleteGame
+      tags: [games]
+      summary: Delete a game
+      responses:
+        "204":
+          description: Deleted
+
+  /games/stats:
+    get:
+      operationId: getGameStats
+      tags: [games]
+      summary: Aggregate stats about the library
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameStats"
+
+  /games/recent:
+    get:
+      operationId: getRecentActivity
+      tags: [games]
+      summary: Recently added or updated games
+      responses:
+        "200":
+          description: Recent
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Game"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +147,168 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    GameStatus:
+      type: string
+      enum: [played, playing, backlog]
+      description: |
+        played = finished/done. playing = currently playing. backlog = will play.
+
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        platform:
+          type: string
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/GameStatus"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        hoursPlayed:
+          type: number
+          nullable: true
+        startedAt:
+          type: string
+          format: date
+          nullable: true
+        finishedAt:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, status, createdAt, updatedAt]
+
+    CreateGameInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        platform:
+          type: string
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/GameStatus"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        hoursPlayed:
+          type: number
+          nullable: true
+        startedAt:
+          type: string
+          format: date
+          nullable: true
+        finishedAt:
+          type: string
+          format: date
+          nullable: true
+      required: [title, status]
+
+    UpdateGameInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        platform:
+          type: string
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/GameStatus"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        hoursPlayed:
+          type: number
+          nullable: true
+        startedAt:
+          type: string
+          format: date
+          nullable: true
+        finishedAt:
+          type: string
+          format: date
+          nullable: true
+
+    GameStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        played:
+          type: integer
+        playing:
+          type: integer
+        backlog:
+          type: integer
+        totalHours:
+          type: number
+        averageRating:
+          type: number
+          nullable: true
+        topGenres:
+          type: array
+          items:
+            type: object
+            properties:
+              genre:
+                type: string
+              count:
+                type: integer
+            required: [genre, count]
+        topPlatforms:
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                type: string
+              count:
+                type: integer
+            required: [platform, count]
+      required: [total, played, playing, backlog, totalHours, topGenres, topPlatforms]

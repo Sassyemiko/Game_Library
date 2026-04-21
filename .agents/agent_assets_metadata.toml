@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "lV_H_zS6esRJoIOMtDm5Y"
+uri = "file://artifacts/games-tracker/public/empty-state.png"
+type = "image"
+title = "Retro gaming console empty state"
