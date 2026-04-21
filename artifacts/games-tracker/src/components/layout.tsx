@@ -1,7 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { Gamepad2, Home, Trophy, Play, PauseOctagon, Sparkles } from "lucide-react";
+import { Gamepad2, Home, Trophy, Play, PauseOctagon, Sparkles, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SignOutButton, useUser } from "@clerk/react";
+import { Button } from "@/components/ui/button";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +11,9 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
+  const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const initial = (user?.firstName || email || "U").trim().charAt(0).toUpperCase();
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
@@ -47,11 +52,29 @@ export function Layout({ children }: LayoutProps) {
           ))}
         </nav>
 
-        <div className="pt-4 border-t border-border/50 flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground px-2">
-            Theme
-          </span>
-          <ThemeToggle />
+        <div className="pt-4 border-t border-border/50 space-y-3">
+          {email && (
+            <div className="flex items-center gap-2 px-2">
+              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{user?.firstName || "Player"}</p>
+                <p className="text-xs text-muted-foreground truncate">{email}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground px-2">
+              Theme
+            </span>
+            <ThemeToggle />
+          </div>
+          <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
+            <Button variant="outline" size="sm" className="w-full border-white/10 text-muted-foreground hover:text-foreground">
+              <LogOut className="w-4 h-4 mr-2" /> Sign out
+            </Button>
+          </SignOutButton>
         </div>
       </aside>
 
@@ -65,7 +88,14 @@ export function Layout({ children }: LayoutProps) {
             <h1 className="font-sans font-bold text-lg tracking-tight">Nexus</h1>
           </div>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </SignOutButton>
+        </div>
       </header>
 
       {/* Main Content */}
