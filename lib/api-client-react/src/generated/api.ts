@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AchievementList,
   CoverSearchResult,
   CreateGameInput,
   Game,
@@ -24,6 +25,7 @@ import type {
   HealthStatus,
   ListGamesParams,
   SearchGameCoverParams,
+  ToggleAchievementInput,
   UpdateGameInput,
 } from "./api.schemas";
 
@@ -204,6 +206,181 @@ export function useSearchGameCover<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Fetch the achievement list for a game (sourced from Steam)
+ */
+export const getGetGameAchievementsUrl = (id: string) => {
+  return `/api/games/${id}/achievements`;
+};
+
+export const getGameAchievements = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AchievementList> => {
+  return customFetch<AchievementList>(getGetGameAchievementsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGameAchievementsQueryKey = (id: string) => {
+  return [`/api/games/${id}/achievements`] as const;
+};
+
+export const getGetGameAchievementsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGameAchievements>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGameAchievements>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGameAchievementsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGameAchievements>>
+  > = ({ signal }) => getGameAchievements(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGameAchievements>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGameAchievementsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGameAchievements>>
+>;
+export type GetGameAchievementsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Fetch the achievement list for a game (sourced from Steam)
+ */
+
+export function useGetGameAchievements<
+  TData = Awaited<ReturnType<typeof getGameAchievements>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGameAchievements>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGameAchievementsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark an achievement as earned or not
+ */
+export const getToggleGameAchievementUrl = (id: string) => {
+  return `/api/games/${id}/achievements`;
+};
+
+export const toggleGameAchievement = async (
+  id: string,
+  toggleAchievementInput: ToggleAchievementInput,
+  options?: RequestInit,
+): Promise<AchievementList> => {
+  return customFetch<AchievementList>(getToggleGameAchievementUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(toggleAchievementInput),
+  });
+};
+
+export const getToggleGameAchievementMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleGameAchievement>>,
+    TError,
+    { id: string; data: BodyType<ToggleAchievementInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleGameAchievement>>,
+  TError,
+  { id: string; data: BodyType<ToggleAchievementInput> },
+  TContext
+> => {
+  const mutationKey = ["toggleGameAchievement"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleGameAchievement>>,
+    { id: string; data: BodyType<ToggleAchievementInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return toggleGameAchievement(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleGameAchievementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleGameAchievement>>
+>;
+export type ToggleGameAchievementMutationBody =
+  BodyType<ToggleAchievementInput>;
+export type ToggleGameAchievementMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark an achievement as earned or not
+ */
+export const useToggleGameAchievement = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleGameAchievement>>,
+    TError,
+    { id: string; data: BodyType<ToggleAchievementInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleGameAchievement>>,
+  TError,
+  { id: string; data: BodyType<ToggleAchievementInput> },
+  TContext
+> => {
+  return useMutation(getToggleGameAchievementMutationOptions(options));
+};
 
 /**
  * @summary List all games

@@ -1,4 +1,6 @@
-import { useGetGame, useDeleteGame, useUpdateGame, getGetGameQueryKey, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, UpdateGameInput } from "@workspace/api-client-react";
+import { useGetGame, useDeleteGame, useUpdateGame, getGetGameQueryKey, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, UpdateGameInput, useGetGameAchievements, useToggleGameAchievement, getGetGameAchievementsQueryKey } from "@workspace/api-client-react";
+import { Progress } from "@/components/ui/progress";
+import { Check, Lock } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useRoute, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,21 @@ export default function GameDetail() {
 
   const deleteGame = useDeleteGame();
   const updateGame = useUpdateGame();
+  const { data: achievements, isLoading: achievementsLoading } = useGetGameAchievements(id!, {
+    query: { enabled: !!id, queryKey: getGetGameAchievementsQueryKey(id!) }
+  });
+  const toggleAchievement = useToggleGameAchievement();
+
+  const handleToggleAchievement = async (name: string, earned: boolean) => {
+    if (!id) return;
+    try {
+      await toggleAchievement.mutateAsync({ id, data: { name, earned } });
+      queryClient.invalidateQueries({ queryKey: getGetGameAchievementsQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: getGetGameQueryKey(id) });
+    } catch {
+      toast({ title: "Error", description: "Failed to update achievement.", variant: "destructive" });
+    }
+  };
 
   const handleDelete = async () => {
     if (!id) return;
@@ -179,6 +196,100 @@ export default function GameDetail() {
           
           {/* Main Content */}
           <div className="md:col-span-2 space-y-8">
+            {/* Achievements */}
+            <div className="bg-card/40 backdrop-blur-sm border border-white/5 rounded-2xl p-8">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <Trophy className="w-3.5 h-3.5" /> Achievements
+                  </h3>
+                  <p className="text-xs text-muted-foreground/70">
+                    Sourced from Steam — works for any copy you own.
+                  </p>
+                </div>
+                {achievements && achievements.achievements.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-primary leading-none">
+                      {achievements.earnedCount}
+                      <span className="text-sm text-muted-foreground font-normal"> / {achievements.achievements.length}</span>
+                    </p>
+                    {achievements.total > achievements.achievements.length && (
+                      <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider mt-1">
+                        of {achievements.total} total
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {achievements && achievements.achievements.length > 0 && (
+                <Progress
+                  value={(achievements.earnedCount / achievements.achievements.length) * 100}
+                  className="h-1.5 mb-6 bg-white/5"
+                />
+              )}
+
+              {achievementsLoading ? (
+                <div className="flex items-center justify-center py-10 text-primary">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+              ) : !achievements || achievements.achievements.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trophy className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <p className="font-mono text-xs uppercase tracking-widest">
+                    {achievements?.source === "steam"
+                      ? "No public achievement data for this game"
+                      : "Auto-fetch a Steam cover to enable achievements"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {achievements.achievements.map((a) => (
+                    <button
+                      key={a.name}
+                      type="button"
+                      onClick={() => handleToggleAchievement(a.name, !a.earned)}
+                      disabled={toggleAchievement.isPending}
+                      className={`group relative flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                        a.earned
+                          ? "bg-primary/10 border-primary/40 shadow-[0_0_20px_-8px_rgba(168,85,247,0.6)]"
+                          : "bg-white/[0.02] border-white/5 hover:border-white/15"
+                      }`}
+                    >
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-black/40">
+                        {a.iconUrl ? (
+                          <img
+                            src={a.iconUrl}
+                            alt={a.displayName}
+                            className={`w-full h-full object-cover transition ${a.earned ? "" : "grayscale opacity-50"}`}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            <Trophy className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className={`absolute inset-0 flex items-center justify-center transition ${a.earned ? "bg-primary/30" : "bg-black/40 group-hover:bg-black/20"}`}>
+                          {a.earned ? (
+                            <Check className="w-5 h-5 text-white drop-shadow" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-white/60 opacity-0 group-hover:opacity-100 transition" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-medium truncate ${a.earned ? "text-foreground" : "text-muted-foreground"}`}>
+                          {a.displayName}
+                        </p>
+                        <p className="text-[10px] font-mono uppercase tracking-wider mt-0.5 text-muted-foreground/60">
+                          {a.earned ? "Unlocked" : "Locked"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {game.notes ? (
               <div className="bg-card/40 backdrop-blur-sm border border-white/5 rounded-2xl p-8">
                 <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-widest mb-4">Personal Notes</h3>

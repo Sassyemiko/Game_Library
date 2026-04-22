@@ -16,27 +16,158 @@ const router: IRouter = Router();
 router.get("/games/cover-search", async (req, res) => {
   const title = typeof req.query.title === "string" ? req.query.title.trim() : "";
   if (!title) {
-    res.json({ coverUrl: null, title: null });
+    res.json({ coverUrl: null, title: null, steamAppId: null });
     return;
   }
   try {
     const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(title)}&l=english&cc=us`;
     const r = await fetch(url, { headers: { "User-Agent": "GamesTracker/1.0" } });
     if (!r.ok) {
-      res.json({ coverUrl: null, title: null });
+      res.json({ coverUrl: null, title: null, steamAppId: null });
       return;
     }
     const data = (await r.json()) as { items?: Array<{ id: number; name: string; tiny_image?: string }> };
     const first = data.items?.[0];
     if (!first) {
-      res.json({ coverUrl: null, title: null });
+      res.json({ coverUrl: null, title: null, steamAppId: null });
       return;
     }
     const coverUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${first.id}/library_600x900.jpg`;
-    res.json({ coverUrl, title: first.name });
+    res.json({ coverUrl, title: first.name, steamAppId: first.id });
   } catch {
-    res.json({ coverUrl: null, title: null });
+    res.json({ coverUrl: null, title: null, steamAppId: null });
   }
+});
+
+function extractSteamAppId(row: GameRow): number | null {
+  if (row.steamAppId) return row.steamAppId;
+  if (!row.coverUrl) return null;
+  const match = row.coverUrl.match(/\/steam\/apps\/(\d+)\//);
+  return match ? Number(match[1]) : null;
+}
+
+type SteamAppDetailsResponse = Record<
+  string,
+  {
+    success: boolean;
+    data?: {
+      achievements?: {
+        total: number;
+        highlighted?: Array<{ name: string; path: string }>;
+      };
+    };
+  }
+>;
+
+async function fetchSteamAchievements(appId: number) {
+  const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=english&filters=achievements,basic`;
+  const r = await fetch(url, { headers: { "User-Agent": "GamesTracker/1.0" } });
+  if (!r.ok) return null;
+  const data = (await r.json()) as SteamAppDetailsResponse;
+  const entry = data[String(appId)];
+  if (!entry?.success || !entry.data?.achievements) return null;
+  return entry.data.achievements;
+}
+
+router.get("/games/:id/achievements", async (req, res) => {
+  const { id } = GetGameParams.parse(req.params);
+  const [row] = await db.select().from(gamesTable).where(eq(gamesTable.id, id));
+  if (!row) {
+    res.status(404).json({ message: "Game not found" });
+    return;
+  }
+  const earned = new Set(row.earnedAchievements ?? []);
+  const appId = extractSteamAppId(row);
+  if (!appId) {
+    res.json({
+      steamAppId: null,
+      total: 0,
+      earnedCount: earned.size,
+      achievements: [],
+      source: "none",
+    });
+    return;
+  }
+
+  const ach = await fetchSteamAchievements(appId);
+  if (!ach || !ach.highlighted || ach.highlighted.length === 0) {
+    res.json({
+      steamAppId: appId,
+      total: ach?.total ?? 0,
+      earnedCount: earned.size,
+      achievements: [],
+      source: "steam",
+    });
+    return;
+  }
+
+  const achievements = ach.highlighted.map((a) => ({
+    name: a.name,
+    displayName: a.name,
+    description: null,
+    iconUrl: a.path,
+    earned: earned.has(a.name),
+  }));
+
+  res.json({
+    steamAppId: appId,
+    total: ach.total ?? achievements.length,
+    earnedCount: achievements.filter((a) => a.earned).length,
+    achievements,
+    source: "steam",
+  });
+});
+
+router.post("/games/:id/achievements", async (req, res) => {
+  const { id } = GetGameParams.parse(req.params);
+  const name = typeof req.body?.name === "string" ? req.body.name : null;
+  const earnedFlag = req.body?.earned === true;
+  if (!name) {
+    res.status(400).json({ message: "name is required" });
+    return;
+  }
+  const [row] = await db.select().from(gamesTable).where(eq(gamesTable.id, id));
+  if (!row) {
+    res.status(404).json({ message: "Game not found" });
+    return;
+  }
+  const set = new Set(row.earnedAchievements ?? []);
+  if (earnedFlag) set.add(name);
+  else set.delete(name);
+  const next = Array.from(set);
+
+  await db
+    .update(gamesTable)
+    .set({ earnedAchievements: next, updatedAt: new Date() })
+    .where(eq(gamesTable.id, id));
+
+  const appId = extractSteamAppId(row);
+  if (!appId) {
+    res.json({
+      steamAppId: null,
+      total: 0,
+      earnedCount: next.length,
+      achievements: [],
+      source: "none",
+    });
+    return;
+  }
+  const ach = await fetchSteamAchievements(appId);
+  const earnedSet = new Set(next);
+  const achievements = (ach?.highlighted ?? []).map((a) => ({
+    name: a.name,
+    displayName: a.name,
+    description: null,
+    iconUrl: a.path,
+    earned: earnedSet.has(a.name),
+  }));
+  res.json({
+    steamAppId: appId,
+    total: ach?.total ?? achievements.length,
+    earnedCount: achievements.filter((a) => a.earned).length,
+    achievements,
+    source: "steam",
+  });
 });
 
 type GameDto = {
@@ -51,6 +182,8 @@ type GameDto = {
   hoursPlayed: number | null;
   startedAt: string | null;
   finishedAt: string | null;
+  steamAppId: number | null;
+  earnedAchievements: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -68,6 +201,8 @@ function toDto(row: GameRow): GameDto {
     hoursPlayed: row.hoursPlayed,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
+    steamAppId: row.steamAppId ?? extractSteamAppId(row),
+    earnedAchievements: row.earnedAchievements ?? [],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

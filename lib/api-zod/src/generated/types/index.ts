@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./achievement";
+export * from "./achievementList";
+export * from "./achievementListSource";
 export * from "./coverSearchResult";
 export * from "./createGameInput";
 export * from "./game";
@@ -16,4 +19,5 @@ export * from "./gameStatus";
 export * from "./healthStatus";
 export * from "./listGamesParams";
 export * from "./searchGameCoverParams";
+export * from "./toggleAchievementInput";
 export * from "./updateGameInput";

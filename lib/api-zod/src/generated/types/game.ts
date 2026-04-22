@@ -23,6 +23,8 @@ export interface Game {
   hoursPlayed?: number | null;
   startedAt?: Date | null;
   finishedAt?: Date | null;
+  steamAppId?: number | null;
+  earnedAchievements?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

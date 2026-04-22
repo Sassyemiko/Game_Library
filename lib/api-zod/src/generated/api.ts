@@ -24,6 +24,58 @@ export const SearchGameCoverQueryParams = zod.object({
 export const SearchGameCoverResponse = zod.object({
   coverUrl: zod.string().nullable(),
   title: zod.string().nullish(),
+  steamAppId: zod.number().nullish(),
+});
+
+/**
+ * @summary Fetch the achievement list for a game (sourced from Steam)
+ */
+export const GetGameAchievementsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetGameAchievementsResponse = zod.object({
+  steamAppId: zod.number().nullish(),
+  total: zod.number(),
+  earnedCount: zod.number(),
+  achievements: zod.array(
+    zod.object({
+      name: zod.string(),
+      displayName: zod.string(),
+      description: zod.string().nullish(),
+      iconUrl: zod.string().nullish(),
+      earned: zod.boolean(),
+    }),
+  ),
+  source: zod.enum(["steam", "none"]),
+});
+
+/**
+ * @summary Mark an achievement as earned or not
+ */
+export const ToggleGameAchievementParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ToggleGameAchievementBody = zod.object({
+  name: zod.string(),
+  earned: zod.boolean(),
+});
+
+export const ToggleGameAchievementResponse = zod.object({
+  steamAppId: zod.number().nullish(),
+  total: zod.number(),
+  earnedCount: zod.number(),
+  achievements: zod.array(
+    zod.object({
+      name: zod.string(),
+      displayName: zod.string(),
+      description: zod.string().nullish(),
+      iconUrl: zod.string().nullish(),
+      earned: zod.boolean(),
+    }),
+  ),
+  source: zod.enum(["steam", "none"]),
 });
 
 /**
@@ -52,6 +104,8 @@ export const ListGamesResponseItem = zod.object({
   hoursPlayed: zod.number().nullish(),
   startedAt: zod.coerce.date().nullish(),
   finishedAt: zod.coerce.date().nullish(),
+  steamAppId: zod.number().nullish(),
+  earnedAchievements: zod.array(zod.string()).optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -105,6 +159,8 @@ export const GetGameResponse = zod.object({
   hoursPlayed: zod.number().nullish(),
   startedAt: zod.coerce.date().nullish(),
   finishedAt: zod.coerce.date().nullish(),
+  steamAppId: zod.number().nullish(),
+  earnedAchievements: zod.array(zod.string()).optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -154,6 +210,8 @@ export const UpdateGameResponse = zod.object({
   hoursPlayed: zod.number().nullish(),
   startedAt: zod.coerce.date().nullish(),
   finishedAt: zod.coerce.date().nullish(),
+  steamAppId: zod.number().nullish(),
+  earnedAchievements: zod.array(zod.string()).optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -210,6 +268,8 @@ export const GetRecentActivityResponseItem = zod.object({
   hoursPlayed: zod.number().nullish(),
   startedAt: zod.coerce.date().nullish(),
   finishedAt: zod.coerce.date().nullish(),
+  steamAppId: zod.number().nullish(),
+  earnedAchievements: zod.array(zod.string()).optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

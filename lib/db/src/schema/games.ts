@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -5,6 +6,7 @@ import {
   real,
   timestamp,
   date,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const gamesTable = pgTable("games", {
@@ -19,6 +21,11 @@ export const gamesTable = pgTable("games", {
   hoursPlayed: real("hours_played"),
   startedAt: date("started_at"),
   finishedAt: date("finished_at"),
+  steamAppId: integer("steam_app_id"),
+  earnedAchievements: jsonb("earned_achievements")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

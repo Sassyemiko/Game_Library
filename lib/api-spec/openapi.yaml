@@ -45,6 +45,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/CoverSearchResult"
 
+  /games/{id}/achievements:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getGameAchievements
+      tags: [games]
+      summary: Fetch the achievement list for a game (sourced from Steam)
+      responses:
+        "200":
+          description: Achievements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AchievementList"
+    post:
+      operationId: toggleGameAchievement
+      tags: [games]
+      summary: Mark an achievement as earned or not
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleAchievementInput"
+      responses:
+        "200":
+          description: Updated achievement list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AchievementList"
+
   /games:
     get:
       operationId: listGames
@@ -211,6 +247,13 @@ components:
           type: string
           format: date
           nullable: true
+        steamAppId:
+          type: integer
+          nullable: true
+        earnedAchievements:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
@@ -303,7 +346,55 @@ components:
         title:
           type: string
           nullable: true
+        steamAppId:
+          type: integer
+          nullable: true
       required: [coverUrl]
+
+    Achievement:
+      type: object
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        iconUrl:
+          type: string
+          nullable: true
+        earned:
+          type: boolean
+      required: [name, displayName, earned]
+
+    AchievementList:
+      type: object
+      properties:
+        steamAppId:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+        earnedCount:
+          type: integer
+        achievements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Achievement"
+        source:
+          type: string
+          enum: [steam, none]
+      required: [total, earnedCount, achievements, source]
+
+    ToggleAchievementInput:
+      type: object
+      properties:
+        name:
+          type: string
+        earned:
+          type: boolean
+      required: [name, earned]
 
     GameStats:
       type: object

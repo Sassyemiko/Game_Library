@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CoverSearchResult {
-  coverUrl: string | null;
-  title?: string | null;
-  steamAppId?: number | null;
+export interface Achievement {
+  name: string;
+  displayName: string;
+  description?: string | null;
+  iconUrl?: string | null;
+  earned: boolean;
 }

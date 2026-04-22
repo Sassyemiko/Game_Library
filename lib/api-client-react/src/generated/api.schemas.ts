@@ -37,6 +37,8 @@ export interface Game {
   hoursPlayed?: number | null;
   startedAt?: string | null;
   finishedAt?: string | null;
+  steamAppId?: number | null;
+  earnedAchievements?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +82,36 @@ export interface UpdateGameInput {
 export interface CoverSearchResult {
   coverUrl: string | null;
   title?: string | null;
+  steamAppId?: number | null;
+}
+
+export interface Achievement {
+  name: string;
+  displayName: string;
+  description?: string | null;
+  iconUrl?: string | null;
+  earned: boolean;
+}
+
+export type AchievementListSource =
+  (typeof AchievementListSource)[keyof typeof AchievementListSource];
+
+export const AchievementListSource = {
+  steam: "steam",
+  none: "none",
+} as const;
+
+export interface AchievementList {
+  steamAppId?: number | null;
+  total: number;
+  earnedCount: number;
+  achievements: Achievement[];
+  source: AchievementListSource;
+}
+
+export interface ToggleAchievementInput {
+  name: string;
+  earned: boolean;
 }
 
 export type GameStatsTopGenresItem = {
