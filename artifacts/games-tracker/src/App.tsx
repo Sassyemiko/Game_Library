@@ -9,10 +9,12 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import GameDetail from "@/pages/game-detail";
 import CategoryPage from "@/pages/category";
+import Recommended from "@/pages/recommended";
 import Landing from "@/pages/landing";
 import { ThemeProvider } from "@/components/theme-provider";
 import { DynamicBackground } from "@/components/dynamic-background";
-import { installGuestFetchHeader, isGuestMode } from "@/lib/guest-mode";
+import { installGuestFetchHeader, isGuestMode, setGuestMode } from "@/lib/guest-mode";
+import { ClerkApiAuth } from "@/lib/clerk-api-auth";
 
 installGuestFetchHeader();
 
@@ -23,9 +25,9 @@ const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL as string | undefined
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
-  return basePath && path.startsWith(basePath)
-    ? path.slice(basePath.length) || "/"
-    : path;
+  if (!basePath) return path;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return normalized.startsWith(basePath) ? normalized.slice(basePath.length) || "/" : normalized;
 }
 
 if (!clerkPubKey) {
@@ -83,8 +85,6 @@ const clerkAppearance = {
 };
 
 function SignInPage() {
-  // To update login providers, app branding, or OAuth settings use the Auth
-  // pane in the workspace toolbar. More information can be found in the Replit docs.
   return (
     <div className="flex min-h-[100dvh] items-center justify-center px-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
@@ -93,8 +93,6 @@ function SignInPage() {
 }
 
 function SignUpPage() {
-  // To update login providers, app branding, or OAuth settings use the Auth
-  // pane in the workspace toolbar. More information can be found in the Replit docs.
   return (
     <div className="flex min-h-[100dvh] items-center justify-center px-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
@@ -122,7 +120,7 @@ function Protected({ children }: { children: React.ReactNode }) {
     <>
       <Show when="signed-in">{children}</Show>
       <Show when="signed-out">
-        <Redirect to="/" />
+        <Redirect to={`${basePath}/sign-in`} />
       </Show>
     </>
   );
@@ -136,10 +134,10 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (
-        prevUserIdRef.current !== undefined &&
-        prevUserIdRef.current !== userId
-      ) {
+      if (user) {
+        setGuestMode(false);
+      }
+      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
         qc.clear();
       }
       prevUserIdRef.current = userId;
@@ -156,41 +154,12 @@ function AppRouter() {
       <Route path="/" component={HomeRedirect} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route path="/completed">
-        {() => (
-          <Protected>
-            <CategoryPage title="Completed" subtitle="Games you've finished" status="played" />
-          </Protected>
-        )}
-      </Route>
-      <Route path="/ongoing">
-        {() => (
-          <Protected>
-            <CategoryPage title="Ongoing" subtitle="Games you're currently playing" status="playing" />
-          </Protected>
-        )}
-      </Route>
-      <Route path="/halted">
-        {() => (
-          <Protected>
-            <CategoryPage title="Halted" subtitle="Games you've paused or dropped" status="halted" />
-          </Protected>
-        )}
-      </Route>
-      <Route path="/recommended">
-        {() => (
-          <Protected>
-            <CategoryPage title="Recommended" subtitle="Your top-rated picks (8+)" filter="recommended" />
-          </Protected>
-        )}
-      </Route>
-      <Route path="/games/:id">
-        {() => (
-          <Protected>
-            <GameDetail />
-          </Protected>
-        )}
-      </Route>
+      <Route path="/completed">{() => (<Protected><CategoryPage title="Completed" subtitle="Games you've finished" status="played" /></Protected>)}</Route>
+      <Route path="/ongoing">{() => (<Protected><CategoryPage title="Ongoing" subtitle="Games you're currently playing" status="playing" /></Protected>)}</Route>
+      <Route path="/on-hold">{() => (<Protected><CategoryPage title="On Hold" subtitle="Games you've paused for later" status="on_hold" /></Protected>)}</Route>
+      <Route path="/dropped">{() => (<Protected><CategoryPage title="Dropped" subtitle="Games you've abandoned" status="dropped" /></Protected>)}</Route>
+      <Route path="/recommended">{() => (<Protected><Recommended /></Protected>)}</Route>
+      <Route path="/games/:id">{() => (<Protected><GameDetail /></Protected>)}</Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -205,17 +174,14 @@ function ClerkProviderWithRoutes() {
       proxyUrl={clerkProxyUrl}
       appearance={clerkAppearance}
       localization={{
-        signIn: {
-          start: { title: "Welcome back", subtitle: "Sign in to access your library" },
-        },
-        signUp: {
-          start: { title: "Sync your email", subtitle: "Create an account to start tracking" },
-        },
+        signIn: { start: { title: "Welcome back", subtitle: "Sign in to access your library" } },
+        signUp: { start: { title: "Sync your email", subtitle: "Create an account to start tracking" } },
       }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      routerPush={(to) => { setLocation(stripBase(to)); }}
+      routerReplace={(to) => { setLocation(stripBase(to), { replace: true }); }}
     >
       <QueryClientProvider client={queryClient}>
+        <ClerkApiAuth />
         <ClerkQueryClientCacheInvalidator />
         <ThemeProvider>
           <TooltipProvider>

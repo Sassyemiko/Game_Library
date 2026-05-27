@@ -1,5 +1,6 @@
 const KEY = "nexus-guest-mode";
 
+/** Dev-only preview without signing in (opt-in via landing page). */
 export function isGuestMode(): boolean {
   if (typeof window === "undefined") return false;
   try {

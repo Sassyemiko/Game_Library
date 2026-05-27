@@ -2,9 +2,8 @@ import { Game, GameStatus } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Gamepad2, Star, Calendar } from "lucide-react";
+import { Clock, Gamepad2, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 interface GameCardProps {
   game: Game;
@@ -13,13 +12,15 @@ interface GameCardProps {
 const statusColors: Record<GameStatus, { bg: string; text: string; border: string }> = {
   playing: { bg: "bg-primary/20", text: "text-primary", border: "border-primary/30" },
   played: { bg: "bg-emerald-500/20", text: "text-emerald-400", border: "border-emerald-500/30" },
-  halted: { bg: "bg-rose-500/20", text: "text-rose-400", border: "border-rose-500/30" },
+  on_hold: { bg: "bg-amber-500/20", text: "text-amber-400", border: "border-amber-500/30" },
+  dropped: { bg: "bg-rose-500/20", text: "text-rose-400", border: "border-rose-500/30" },
 };
 
 const statusLabels: Record<GameStatus, string> = {
   playing: "Ongoing",
   played: "Completed",
-  halted: "Halted",
+  on_hold: "On Hold",
+  dropped: "Dropped",
 };
 
 export function GameCard({ game }: GameCardProps) {

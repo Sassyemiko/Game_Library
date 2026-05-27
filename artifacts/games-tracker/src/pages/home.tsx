@@ -27,12 +27,17 @@ export default function Home() {
 
   const isLoading = statsLoading || recentLoading || playingLoading;
 
-  const sortedPlaying = (playingGames || []).slice().sort((a, b) => {
+  // ✅ FIX: Ensure playingGames is an array before using array methods
+  const safePlayingGames = Array.isArray(playingGames) ? playingGames : [];
+  const sortedPlaying = safePlayingGames.slice().sort((a, b) => {
     const aDate = a.updatedAt || a.startedAt || "";
     const bDate = b.updatedAt || b.startedAt || "";
     return bDate.localeCompare(aDate);
   });
   const featured = sortedPlaying[0];
+
+  // ✅ FIX: Also guard recentActivity for safety
+  const safeRecentActivity = Array.isArray(recentActivity) ? recentActivity : [];
 
   return (
     <Layout>
@@ -204,11 +209,11 @@ export default function Home() {
             </div>
 
             {/* Recent Activity */}
-            {recentActivity && recentActivity.length > 0 && (
+            {safeRecentActivity.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold tracking-tight">Recent Activity</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {recentActivity.slice(0, 4).map(game => (
+                  {safeRecentActivity.slice(0, 4).map(game => (
                     <GameCard key={`recent-${game.id}`} game={game} />
                   ))}
                 </div>

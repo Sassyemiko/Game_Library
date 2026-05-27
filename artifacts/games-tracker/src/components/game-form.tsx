@@ -1,7 +1,7 @@
-import { Game, GameStatus, CreateGameInput, UpdateGameInput, useCreateGame, useUpdateGame, searchGameCover, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, getGetGameQueryKey } from "@workspace/api-client-react";
+import { Game, GameStatus, CreateGameInput, UpdateGameInput, useCreateGame, useUpdateGame, useListGames, searchGameCover, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, getGetGameQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Loader2, Sparkles, FolderOpen } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,18 +13,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
+import { GenreInput } from "@/components/ui/genre-input";
+import { saveCustomGenre } from "@/lib/genres";
 
 const gameSchema = z.object({
   title: z.string().min(1, "Title is required"),
   platform: z.string().optional(),
   genre: z.string().optional(),
-  status: z.enum(["played", "playing", "halted"]),
+  status: z.enum(["played", "playing", "on_hold", "dropped"]),
   rating: z.number().min(1).max(10).optional().nullable(),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   notes: z.string().optional(),
   hoursPlayed: z.coerce.number().min(0).optional().nullable(),
   startedAt: z.string().optional(),
   finishedAt: z.string().optional(),
+  executablePath: z.string().optional(), // NEW FIELD
 });
 
 type GameFormValues = z.infer<typeof gameSchema>;
@@ -41,6 +44,14 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
   
   const createGame = useCreateGame();
   const updateGame = useUpdateGame();
+  const { data: libraryGames } = useListGames(undefined, {
+    query: { queryKey: getListGamesQueryKey() },
+  });
+
+  const libraryGenres = React.useMemo(() => {
+    const games = Array.isArray(libraryGames) ? libraryGames : [];
+    return games.map((g) => g.genre).filter((g): g is string => !!g?.trim());
+  }, [libraryGames]);
 
   const isEditing = !!game;
   const [coverFetching, setCoverFetching] = useState(false);
@@ -60,6 +71,7 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
       hoursPlayed: game?.hoursPlayed || null,
       startedAt: game?.startedAt?.split('T')[0] || "",
       finishedAt: game?.finishedAt?.split('T')[0] || "",
+      executablePath: game?.executablePath || "", // NEW DEFAULT
     },
   });
 
@@ -96,10 +108,26 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
     if (open) {
       userTouchedCoverRef.current = false;
       lastFetchedTitleRef.current = "";
+      form.reset({
+        title: game?.title || "",
+        platform: game?.platform || "",
+        genre: game?.genre || "",
+        status: game?.status || "playing",
+        rating: game?.rating || null,
+        coverUrl: game?.coverUrl || "",
+        notes: game?.notes || "",
+        hoursPlayed: game?.hoursPlayed || null,
+        startedAt: game?.startedAt?.split("T")[0] || "",
+        finishedAt: game?.finishedAt?.split("T")[0] || "",
+        executablePath: game?.executablePath || "",
+      });
     }
-  }, [open]);
+  }, [open, game, form]);
 
   const onSubmit = async (data: GameFormValues) => {
+    if (data.genre?.trim()) {
+      saveCustomGenre(data.genre);
+    }
     try {
       const payload = {
         ...data,
@@ -109,12 +137,14 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
         platform: data.platform || undefined,
         genre: data.genre || undefined,
         notes: data.notes || undefined,
+        executablePath: data.executablePath?.trim() || undefined,
         startedAt: data.startedAt ? new Date(data.startedAt).toISOString() : undefined,
         finishedAt: data.finishedAt ? new Date(data.finishedAt).toISOString() : undefined,
       };
 
       if (isEditing && game) {
-        await updateGame.mutateAsync({ id: game.id, data: payload as UpdateGameInput });
+        const updated = await updateGame.mutateAsync({ id: game.id, data: payload as UpdateGameInput });
+        queryClient.setQueryData(getGetGameQueryKey(game.id), updated);
         toast({ title: "Game updated", description: `${data.title} has been updated.` });
         queryClient.invalidateQueries({ queryKey: getGetGameQueryKey(game.id) });
       } else {
@@ -181,7 +211,8 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                       <SelectContent>
                         <SelectItem value="playing">Ongoing</SelectItem>
                         <SelectItem value="played">Completed</SelectItem>
-                        <SelectItem value="halted">Halted</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="dropped">Dropped</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -203,6 +234,7 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="PC">PC</SelectItem>
+                        <SelectItem value="Mobile">Mobile</SelectItem>
                         <SelectItem value="PS4">PS4</SelectItem>
                         <SelectItem value="PS5">PS5</SelectItem>
                         <SelectItem value="Xbox 360">Xbox 360</SelectItem>
@@ -223,7 +255,12 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                   <FormItem>
                     <FormLabel className="text-xs uppercase tracking-widest font-mono text-muted-foreground">Genre</FormLabel>
                     <FormControl>
-                      <Input placeholder="RPG, Shooter..." className="bg-background/50 border-white/10" {...field} value={field.value || ""} />
+                      <GenreInput
+                        value={field.value || ""}
+                        onChange={(val) => field.onChange(val)}
+                        libraryGenres={libraryGenres}
+                        placeholder="Type or select genre"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -244,6 +281,50 @@ export function GameForm({ game, open, onOpenChange }: GameFormProps) {
                 )}
               />
             </div>
+
+            {/* NEW: Executable Path Field */}
+            <FormField
+              control={form.control}
+              name="executablePath"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs uppercase tracking-widest font-mono text-muted-foreground flex items-center gap-2">
+                    <FolderOpen className="w-3 h-3" />
+                    Game Executable Path
+                  </FormLabel>
+                  <FormControl>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="C:\Games\Game\game.exe"
+                        className="bg-background/50 border-white/10 font-mono text-xs"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="border-white/10 shrink-0"
+                        onClick={async () => {
+                          // Open file picker (Windows only via Electron/Tauri)
+                          // For web fallback: show helper text
+                          toast({
+                            title: "Tip",
+                            description: "Right-click game.exe → Properties → Copy path",
+                          });
+                        }}
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Required for auto playtime tracking. Example: <code className="bg-white/5 px-1 rounded">C:\Steam\steamapps\common\Game\game.exe</code>
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

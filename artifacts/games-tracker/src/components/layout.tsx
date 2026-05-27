@@ -1,9 +1,21 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Gamepad2, Home, Trophy, Play, PauseOctagon, Sparkles, LogOut } from "lucide-react";
+import { Gamepad2, Home, Trophy, Play, PauseOctagon, Ban, Sparkles, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton, useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  getGetFriendsProfileQueryKey,
+  getGetFriendRecommendationsQueryKey,
+  getListFriendsQueryKey,
+  useGetFriendsProfile,
+  useUpdateFriendsProfile,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { isGuestMode, setGuestMode } from "@/lib/guest-mode";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,15 +24,74 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { user } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const guestPreview = isGuestMode();
   const email = user?.primaryEmailAddress?.emailAddress;
-  const initial = (user?.firstName || email || "U").trim().charAt(0).toUpperCase();
+  const [editingName, setEditingName] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+
+  const { data: profile } = useGetFriendsProfile({
+    query: {
+      enabled: !guestPreview,
+      queryKey: getGetFriendsProfileQueryKey(),
+    },
+  });
+
+  const visibleName = guestPreview
+    ? "Guest preview"
+    : profile?.displayName?.trim() || user?.firstName || "Player";
+  const initial = (visibleName || email || (guestPreview ? "G" : "U")).trim().charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!profile?.displayName) return;
+    setNicknameInput(profile.displayName);
+  }, [profile?.displayName]);
+
+  const updateProfile = useUpdateFriendsProfile({
+    mutation: {
+      onSuccess: (updated) => {
+        setEditingName(false);
+        setNicknameInput(updated.displayName);
+        toast({
+          title: "Nickname updated",
+          description: `Now visible as ${updated.displayName}.`,
+        });
+        queryClient.invalidateQueries({ queryKey: getGetFriendsProfileQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListFriendsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetFriendRecommendationsQueryKey() });
+      },
+      onError: (err: { message?: string }) => {
+        toast({
+          title: "Could not update nickname",
+          description: err?.message || "Use 1-32 characters and try again.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const exitGuestPreview = () => {
+    setGuestMode(false);
+    window.location.href = import.meta.env.BASE_URL;
+  };
+
+  const saveNickname = () => {
+    const next = nicknameInput.trim();
+    if (!next || next === (profile?.displayName ?? "").trim()) {
+      setEditingName(false);
+      return;
+    }
+    updateProfile.mutate({ data: { displayName: next } });
+  };
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
     { href: "/completed", icon: Trophy, label: "Completed" },
     { href: "/ongoing", icon: Play, label: "Ongoing" },
-    { href: "/halted", icon: PauseOctagon, label: "Halted" },
-    { href: "/recommended", icon: Sparkles, label: "Recommended" },
+    { href: "/on-hold", icon: PauseOctagon, label: "On Hold" },
+    { href: "/dropped", icon: Ban, label: "Dropped" },
+    { href: "/recommended", icon: Sparkles, label: "Friends" },
   ];
 
   return (
@@ -53,15 +124,63 @@ export function Layout({ children }: LayoutProps) {
         </nav>
 
         <div className="pt-4 border-t border-border/50 space-y-3">
-          {email && (
+          {(email || guestPreview) && (
             <div className="flex items-center gap-2 px-2">
               <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                 {initial}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{user?.firstName || "Player"}</p>
-                <p className="text-xs text-muted-foreground truncate">{email}</p>
+                {editingName && !guestPreview ? (
+                  <div className="space-y-1">
+                    <Input
+                      value={nicknameInput}
+                      onChange={(e) => setNicknameInput(e.target.value)}
+                      className="h-8 text-xs bg-background/50 border-white/10"
+                      maxLength={32}
+                      placeholder="Choose nickname"
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={saveNickname}
+                        disabled={updateProfile.isPending || !nicknameInput.trim()}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setEditingName(false);
+                          setNicknameInput(profile?.displayName ?? "");
+                        }}
+                        disabled={updateProfile.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium truncate">{visibleName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {guestPreview ? "Not signed in" : "Visible name"}
+                    </p>
+                  </>
+                )}
               </div>
+              {!guestPreview && !editingName && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setEditingName(true)}
+                >
+                  Edit
+                </Button>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between">
@@ -100,6 +219,14 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-x-hidden relative">
+        {guestPreview && (
+          <div className="mx-4 md:mx-8 mt-4 md:mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-amber-100 z-10">
+            <span>Preview mode — your library is not synced to an account.</span>
+            <Button size="sm" variant="outline" className="border-amber-500/40 shrink-0" onClick={exitGuestPreview}>
+              Sign in to sync
+            </Button>
+          </div>
+        )}
         <div className="flex-1 p-4 md:p-8 z-10">
           {children}
         </div>

@@ -18,9 +18,12 @@ export default function CategoryPage({ title, subtitle, status, filter }: Catego
     { query: { queryKey: getListGamesQueryKey(params) } }
   );
 
+  // ✅ FIX: Ensure games is an array before any array operations
+  const safeGames = Array.isArray(games) ? games : [];
+  
   const filtered = filter === "recommended"
-    ? (games || []).filter(g => (g.rating ?? 0) >= 8).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-    : games || [];
+    ? safeGames.filter(g => (g.rating ?? 0) >= 8).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    : safeGames;
 
   return (
     <Layout>

@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: games
     description: Game library operations
+  - name: friends
+    description: Friends, referral codes, and social recommendations
 paths:
   /healthz:
     get:
@@ -195,6 +197,83 @@ paths:
                 items:
                   $ref: "#/components/schemas/Game"
 
+  /friends/profile:
+    get:
+      operationId: getFriendsProfile
+      tags: [friends]
+      summary: Get your referral code and friend count
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendsProfile"
+        "403":
+          description: Sign in required
+
+  /friends:
+    get:
+      operationId: listFriends
+      tags: [friends]
+      summary: List your friends
+      responses:
+        "200":
+          description: Friends list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendsList"
+
+  /friends/invite:
+    post:
+      operationId: inviteFriend
+      tags: [friends]
+      summary: Add a friend using their referral code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteFriendInput"
+      responses:
+        "201":
+          description: Friend added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteFriendResult"
+        "404":
+          description: Invalid code
+
+  /friends/recommendations:
+    get:
+      operationId: getFriendRecommendations
+      tags: [friends]
+      summary: Friend game recommendations and shared-game comparisons
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendRecommendations"
+
+  /friends/{friendId}:
+    parameters:
+      - in: path
+        name: friendId
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: removeFriend
+      tags: [friends]
+      summary: Remove a friend
+      responses:
+        "204":
+          description: Removed
+
 components:
   schemas:
     HealthStatus:
@@ -206,9 +285,9 @@ components:
 
     GameStatus:
       type: string
-      enum: [played, playing, halted]
+      enum: [played, playing, on_hold, dropped]
       description: |
-        played = finished/done. playing = currently playing. halted = paused/dropped.
+        played = finished/done. playing = currently playing. on_hold = paused for later. dropped = abandoned.
 
     Game:
       type: object
@@ -254,6 +333,10 @@ components:
           type: array
           items:
             type: string
+        executablePath:
+          type: string
+          nullable: true
+          description: Absolute path to the game executable for launch and playtime tracking
         createdAt:
           type: string
           format: date-time
@@ -298,6 +381,9 @@ components:
           type: string
           format: date
           nullable: true
+        executablePath:
+          type: string
+          nullable: true
       required: [title, status]
 
     UpdateGameInput:
@@ -335,6 +421,9 @@ components:
         finishedAt:
           type: string
           format: date
+          nullable: true
+        executablePath:
+          type: string
           nullable: true
 
     CoverSearchResult:
@@ -405,7 +494,9 @@ components:
           type: integer
         playing:
           type: integer
-        halted:
+        onHold:
+          type: integer
+        dropped:
           type: integer
         totalHours:
           type: number
@@ -432,4 +523,150 @@ components:
               count:
                 type: integer
             required: [platform, count]
-      required: [total, played, playing, backlog, totalHours, topGenres, topPlatforms]
+      required: [total, played, playing, onHold, dropped, totalHours, topGenres, topPlatforms]
+
+    FriendsProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        referralCode:
+          type: string
+        displayName:
+          type: string
+        friendCount:
+          type: integer
+      required: [id, referralCode, displayName, friendCount]
+
+    FriendSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        referralCode:
+          type: string
+        displayName:
+          type: string
+      required: [id, referralCode, displayName]
+
+    FriendsList:
+      type: object
+      properties:
+        friends:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendSummary"
+      required: [friends]
+
+    InviteFriendInput:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 4
+      required: [code]
+
+    InviteFriendResult:
+      type: object
+      properties:
+        friend:
+          $ref: "#/components/schemas/FriendSummary"
+      required: [friend]
+
+    FriendGameSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        coverUrl:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        status:
+          type: string
+        rating:
+          type: integer
+          nullable: true
+        hoursPlayed:
+          type: number
+          nullable: true
+        earnedAchievements:
+          type: array
+          items:
+            type: string
+        steamAppId:
+          type: integer
+          nullable: true
+      required: [id, title, status, earnedAchievements]
+
+    FriendRecommendation:
+      type: object
+      properties:
+        friendId:
+          type: string
+        friendName:
+          type: string
+        game:
+          $ref: "#/components/schemas/FriendGameSummary"
+        reason:
+          type: string
+      required: [friendId, friendName, game, reason]
+
+    SharedFriendStats:
+      type: object
+      properties:
+        friendId:
+          type: string
+        friendName:
+          type: string
+        hoursPlayed:
+          type: number
+          nullable: true
+        earnedCount:
+          type: integer
+        status:
+          type: string
+        rating:
+          type: integer
+          nullable: true
+      required: [friendId, friendName, earnedCount, status]
+
+    SharedGameComparison:
+      type: object
+      properties:
+        gameTitle:
+          type: string
+        coverUrl:
+          type: string
+          nullable: true
+        steamAppId:
+          type: integer
+          nullable: true
+        myGame:
+          $ref: "#/components/schemas/FriendGameSummary"
+        friends:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharedFriendStats"
+      required: [gameTitle, myGame, friends]
+
+    FriendRecommendations:
+      type: object
+      properties:
+        friends:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendSummary"
+        friendRecommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendRecommendation"
+        sharedComparisons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharedGameComparison"
+      required: [friends, friendRecommendations, sharedComparisons]

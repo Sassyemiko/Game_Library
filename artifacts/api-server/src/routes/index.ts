@@ -1,20 +1,14 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { getAuth } from "@clerk/express";
 import healthRouter from "./health";
 import gamesRouter from "./games";
+import friendsRouter from "./friends";
+import { trackerRouter } from "./tracker";
+import { getRequestUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
-  // Dev-only: allow unauthenticated browsing when the guest header is set.
-  if (
-    process.env.NODE_ENV !== "production" &&
-    req.headers["x-guest-mode"] === "true"
-  ) {
-    return next();
-  }
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.sub || auth?.userId;
+  const userId = getRequestUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -23,6 +17,9 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 router.use(healthRouter);
+// Desktop app (Nexus Tracker) — no auth; local-only playtime sync
+router.use("/tracker", trackerRouter);
 router.use(requireAuth, gamesRouter);
+router.use(requireAuth, friendsRouter);
 
 export default router;

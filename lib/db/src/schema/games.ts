@@ -7,10 +7,12 @@ import {
   timestamp,
   date,
   jsonb,
+  varchar, // ← Make sure this is imported
 } from "drizzle-orm/pg-core";
 
 export const gamesTable = pgTable("games", {
   id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
   title: text("title").notNull(),
   platform: text("platform"),
   genre: text("genre"),
@@ -32,6 +34,9 @@ export const gamesTable = pgTable("games", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  
+  // ✅ This field must exist:
+  executablePath: varchar("executable_path", { length: 1024 }),
 });
 
 export type GameRow = typeof gamesTable.$inferSelect;

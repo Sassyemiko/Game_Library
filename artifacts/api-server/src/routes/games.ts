@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { db, gamesTable, type GameRow } from "@workspace/db";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, ilike } from "drizzle-orm";
 import {
   CreateGameBody,
   UpdateGameBody,
@@ -10,8 +10,25 @@ import {
   ListGamesQueryParams,
 } from "@workspace/api-zod";
 import { randomUUID } from "node:crypto";
+import { getRequestUserId } from "../lib/auth";
 
 const router: IRouter = Router();
+
+function userIdFrom(req: Request): string {
+  const userId = getRequestUserId(req);
+  if (!userId) {
+    throw new Error("Missing user id after auth middleware");
+  }
+  return userId;
+}
+
+async function findOwnedGame(userId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(gamesTable)
+    .where(and(eq(gamesTable.id, id), eq(gamesTable.userId, userId)));
+  return row;
+}
 
 router.get("/games/cover-search", async (req, res) => {
   const title = typeof req.query.title === "string" ? req.query.title.trim() : "";
@@ -70,8 +87,9 @@ async function fetchSteamAchievements(appId: number) {
 }
 
 router.get("/games/:id/achievements", async (req, res) => {
+  const userId = userIdFrom(req);
   const { id } = GetGameParams.parse(req.params);
-  const [row] = await db.select().from(gamesTable).where(eq(gamesTable.id, id));
+  const row = await findOwnedGame(userId, id);
   if (!row) {
     res.status(404).json({ message: "Game not found" });
     return;
@@ -119,6 +137,7 @@ router.get("/games/:id/achievements", async (req, res) => {
 });
 
 router.post("/games/:id/achievements", async (req, res) => {
+  const userId = userIdFrom(req);
   const { id } = GetGameParams.parse(req.params);
   const name = typeof req.body?.name === "string" ? req.body.name : null;
   const earnedFlag = req.body?.earned === true;
@@ -126,7 +145,7 @@ router.post("/games/:id/achievements", async (req, res) => {
     res.status(400).json({ message: "name is required" });
     return;
   }
-  const [row] = await db.select().from(gamesTable).where(eq(gamesTable.id, id));
+  const row = await findOwnedGame(userId, id);
   if (!row) {
     res.status(404).json({ message: "Game not found" });
     return;
@@ -139,7 +158,7 @@ router.post("/games/:id/achievements", async (req, res) => {
   await db
     .update(gamesTable)
     .set({ earnedAchievements: next, updatedAt: new Date() })
-    .where(eq(gamesTable.id, id));
+    .where(and(eq(gamesTable.id, id), eq(gamesTable.userId, userId)));
 
   const appId = extractSteamAppId(row);
   if (!appId) {
@@ -175,7 +194,7 @@ type GameDto = {
   title: string;
   platform: string | null;
   genre: string | null;
-  status: "played" | "playing" | "halted";
+  status: "played" | "playing" | "on_hold" | "dropped";
   rating: number | null;
   coverUrl: string | null;
   notes: string | null;
@@ -184,6 +203,7 @@ type GameDto = {
   finishedAt: string | null;
   steamAppId: number | null;
   earnedAchievements: string[];
+  executablePath: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -194,7 +214,7 @@ function toDto(row: GameRow): GameDto {
     title: row.title,
     platform: row.platform,
     genre: row.genre,
-    status: row.status as "played" | "playing" | "halted",
+    status: row.status as "played" | "playing" | "on_hold" | "dropped",
     rating: row.rating,
     coverUrl: row.coverUrl,
     notes: row.notes,
@@ -203,6 +223,7 @@ function toDto(row: GameRow): GameDto {
     finishedAt: row.finishedAt,
     steamAppId: row.steamAppId ?? extractSteamAppId(row),
     earnedAchievements: row.earnedAchievements ?? [],
+    executablePath: row.executablePath ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -216,13 +237,18 @@ function toDateString(v: unknown): string | null | undefined {
   return undefined;
 }
 
-router.get("/games/stats", async (_req, res) => {
-  const rows = await db.select().from(gamesTable);
+router.get("/games/stats", async (req, res) => {
+  const userId = userIdFrom(req);
+  const rows = await db
+    .select()
+    .from(gamesTable)
+    .where(eq(gamesTable.userId, userId));
 
   const total = rows.length;
   const played = rows.filter((r) => r.status === "played").length;
   const playing = rows.filter((r) => r.status === "playing").length;
-  const halted = rows.filter((r) => r.status === "halted").length;
+  const onHold = rows.filter((r) => r.status === "on_hold").length;
+  const dropped = rows.filter((r) => r.status === "dropped").length;
   const totalHours = rows.reduce((s, r) => s + (r.hoursPlayed ?? 0), 0);
   const ratings = rows.map((r) => r.rating).filter((r): r is number => r != null);
   const averageRating =
@@ -250,7 +276,8 @@ router.get("/games/stats", async (_req, res) => {
     total,
     played,
     playing,
-    halted,
+    onHold,
+    dropped,
     totalHours: Number(totalHours.toFixed(2)),
     averageRating,
     topGenres,
@@ -258,34 +285,35 @@ router.get("/games/stats", async (_req, res) => {
   });
 });
 
-router.get("/games/recent", async (_req, res) => {
+router.get("/games/recent", async (req, res) => {
+  const userId = userIdFrom(req);
   const rows = await db
     .select()
     .from(gamesTable)
+    .where(eq(gamesTable.userId, userId))
     .orderBy(desc(gamesTable.updatedAt))
     .limit(8);
   res.json(rows.map(toDto));
 });
 
 router.get("/games", async (req, res) => {
+  const userId = userIdFrom(req);
   const params = ListGamesQueryParams.parse(req.query);
-  const conditions = [];
+  const conditions = [eq(gamesTable.userId, userId)];
   if (params.status) conditions.push(eq(gamesTable.status, params.status));
   if (params.search) conditions.push(ilike(gamesTable.title, `%${params.search}%`));
 
-  const rows =
-    conditions.length > 0
-      ? await db
-          .select()
-          .from(gamesTable)
-          .where(and(...conditions))
-          .orderBy(desc(gamesTable.updatedAt))
-      : await db.select().from(gamesTable).orderBy(desc(gamesTable.updatedAt));
+  const rows = await db
+    .select()
+    .from(gamesTable)
+    .where(and(...conditions))
+    .orderBy(desc(gamesTable.updatedAt));
 
   res.json(rows.map(toDto));
 });
 
 router.post("/games", async (req, res) => {
+  const userId = userIdFrom(req);
   const body = CreateGameBody.parse(req.body);
   const id = randomUUID();
   const now = new Date();
@@ -293,6 +321,7 @@ router.post("/games", async (req, res) => {
     .insert(gamesTable)
     .values({
       id,
+      userId,
       title: body.title,
       platform: body.platform ?? null,
       genre: body.genre ?? null,
@@ -303,6 +332,7 @@ router.post("/games", async (req, res) => {
       hoursPlayed: body.hoursPlayed ?? null,
       startedAt: toDateString(body.startedAt) ?? null,
       finishedAt: toDateString(body.finishedAt) ?? null,
+      executablePath: body.executablePath ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -311,8 +341,9 @@ router.post("/games", async (req, res) => {
 });
 
 router.get("/games/:id", async (req, res) => {
+  const userId = userIdFrom(req);
   const { id } = GetGameParams.parse(req.params);
-  const [row] = await db.select().from(gamesTable).where(eq(gamesTable.id, id));
+  const row = await findOwnedGame(userId, id);
   if (!row) {
     res.status(404).json({ message: "Game not found" });
     return;
@@ -321,6 +352,7 @@ router.get("/games/:id", async (req, res) => {
 });
 
 router.patch("/games/:id", async (req, res) => {
+  const userId = userIdFrom(req);
   const { id } = UpdateGameParams.parse(req.params);
   const body = UpdateGameBody.parse(req.body);
 
@@ -335,11 +367,12 @@ router.patch("/games/:id", async (req, res) => {
   if (body.hoursPlayed !== undefined) update.hoursPlayed = body.hoursPlayed;
   if (body.startedAt !== undefined) update.startedAt = toDateString(body.startedAt);
   if (body.finishedAt !== undefined) update.finishedAt = toDateString(body.finishedAt);
+  if (body.executablePath !== undefined) update.executablePath = body.executablePath;
 
   const [row] = await db
     .update(gamesTable)
     .set(update)
-    .where(eq(gamesTable.id, id))
+    .where(and(eq(gamesTable.id, id), eq(gamesTable.userId, userId)))
     .returning();
   if (!row) {
     res.status(404).json({ message: "Game not found" });
@@ -349,10 +382,16 @@ router.patch("/games/:id", async (req, res) => {
 });
 
 router.delete("/games/:id", async (req, res) => {
+  const userId = userIdFrom(req);
   const { id } = DeleteGameParams.parse(req.params);
-  const result = await db.delete(gamesTable).where(eq(gamesTable.id, id));
-  void sql; // keep import minimal
-  void result;
+  const [row] = await db
+    .delete(gamesTable)
+    .where(and(eq(gamesTable.id, id), eq(gamesTable.userId, userId)))
+    .returning();
+  if (!row) {
+    res.status(404).json({ message: "Game not found" });
+    return;
+  }
   res.status(204).end();
 });
 

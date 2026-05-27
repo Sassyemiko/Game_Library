@@ -1,10 +1,10 @@
-import { useGetGame, useDeleteGame, useUpdateGame, getGetGameQueryKey, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, UpdateGameInput, useGetGameAchievements, useToggleGameAchievement, getGetGameAchievementsQueryKey } from "@workspace/api-client-react";
+import { useGetGame, useDeleteGame, useUpdateGame, getGetGameQueryKey, getListGamesQueryKey, getGetGameStatsQueryKey, getGetRecentActivityQueryKey, UpdateGameInput, useGetGameAchievements, useToggleGameAchievement, getGetGameAchievementsQueryKey, GameStatus } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
 import { Check, Lock } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useRoute, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Trash2, Clock, Calendar, Star, Gamepad2, Loader2, Trophy } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Clock, Calendar, Star, Gamepad2, Loader2, Trophy, PauseOctagon, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
+import { LaunchGameButton } from "@/components/lauch-game-button";
 
 export default function GameDetail() {
   const [, params] = useRoute("/games/:id");
@@ -28,6 +30,7 @@ export default function GameDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -68,7 +71,7 @@ export default function GameDetail() {
     }
   };
 
-  const handleStatusChange = async (newStatus: "played" | "playing" | "backlog") => {
+  const handleStatusChange = async (newStatus: GameStatus) => {
     if (!id || !game) return;
     try {
       const payload: UpdateGameInput = { status: newStatus };
@@ -152,9 +155,11 @@ export default function GameDetail() {
               <div className="flex flex-wrap gap-2 mb-2">
                 <Badge variant="outline" className={`px-3 py-1 font-mono uppercase tracking-widest bg-black/50 backdrop-blur-md
                   ${game.status === 'playing' ? 'text-primary border-primary/50' : 
-                    game.status === 'played' ? 'text-emerald-400 border-emerald-500/50' : 
-                    'text-amber-400 border-amber-500/50'}`}>
-                  {game.status}
+                    game.status === 'played' ? 'text-emerald-400 border-emerald-500/50' :
+                    game.status === 'on_hold' ? 'text-amber-400 border-amber-500/50' :
+                    game.status === 'dropped' ? 'text-rose-400 border-rose-500/50' :
+                    'text-muted-foreground border-white/20'}`}>
+                  {game.status === 'on_hold' ? 'On Hold' : game.status === 'dropped' ? 'Dropped' : game.status}
                 </Badge>
                 {game.platform && (
                   <Badge variant="secondary" className="px-3 py-1 bg-white/10 hover:bg-white/20 font-mono uppercase">
@@ -313,6 +318,9 @@ export default function GameDetail() {
               <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-widest mb-4">Actions</h3>
               
               <div className="space-y-2">
+                {/* Launch Game Button - NEW FEATURE */}
+                <LaunchGameButton game={game} userId={user?.id ?? "guest"} />
+                
                 <Button variant="secondary" className="w-full justify-start bg-white/5 hover:bg-white/10" onClick={() => setIsEditOpen(true)}>
                   <Edit className="w-4 h-4 mr-2" /> Edit Game
                 </Button>
@@ -332,6 +340,16 @@ export default function GameDetail() {
                    {game.status !== 'played' && (
                      <Button size="sm" variant="outline" className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10" onClick={() => handleStatusChange('played')}>
                        <Trophy className="w-3 h-3 mr-2" /> Mark Completed
+                     </Button>
+                   )}
+                   {game.status !== 'on_hold' && (
+                     <Button size="sm" variant="outline" className="w-full border-amber-500/30 text-amber-500 hover:bg-amber-500/10" onClick={() => handleStatusChange('on_hold')}>
+                       <PauseOctagon className="w-3 h-3 mr-2" /> Put On Hold
+                     </Button>
+                   )}
+                   {game.status !== 'dropped' && (
+                     <Button size="sm" variant="outline" className="w-full border-rose-500/30 text-rose-500 hover:bg-rose-500/10" onClick={() => handleStatusChange('dropped')}>
+                       <Ban className="w-3 h-3 mr-2" /> Mark Dropped
                      </Button>
                    )}
                  </div>
