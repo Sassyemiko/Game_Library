@@ -2,9 +2,29 @@ import { SignInButton, SignUpButton } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Gamepad2, Sparkles, Trophy, Library, ArrowRight, Eye } from "lucide-react";
 import { setGuestMode } from "@/lib/guest-mode";
+import { PasswordModal } from "@/components/password-modal";
+import { useState } from "react";
 
 export default function Landing() {
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  const handlePasswordSubmit = (password: string) => {
+    const previewPwd = import.meta.env.VITE_PREVIEW_PASSWORD as string | undefined;
+    if (previewPwd && password !== previewPwd) {
+      setPasswordModalOpen(false);
+      return;
+    }
+    setPasswordModalOpen(false);
+    setGuestMode(true);
+    window.location.href = import.meta.env.BASE_URL;
+  };
+
   const enterGuest = () => {
+    const previewPwd = import.meta.env.VITE_PREVIEW_PASSWORD as string | undefined;
+    if (previewPwd) {
+      setPasswordModalOpen(true);
+      return;
+    }
     setGuestMode(true);
     window.location.href = import.meta.env.BASE_URL;
   };
@@ -95,6 +115,12 @@ export default function Landing() {
       <footer className="px-6 md:px-10 py-6 text-center text-xs font-mono uppercase tracking-widest text-muted-foreground z-10">
         Nexus · Personal Games Tracker
       </footer>
+
+      <PasswordModal
+        isOpen={passwordModalOpen}
+        onSubmit={handlePasswordSubmit}
+        onCancel={() => setPasswordModalOpen(false)}
+      />
     </div>
   );
 }

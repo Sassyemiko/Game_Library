@@ -189,11 +189,22 @@ export function Layout({ children }: LayoutProps) {
             </span>
             <ThemeToggle />
           </div>
-          <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
-            <Button variant="outline" size="sm" className="w-full border-white/10 text-muted-foreground hover:text-foreground">
+          {guestPreview ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-white/10 text-muted-foreground hover:text-foreground"
+              onClick={exitGuestPreview}
+            >
               <LogOut className="w-4 h-4 mr-2" /> Sign out
             </Button>
-          </SignOutButton>
+          ) : (
+            <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
+              <Button variant="outline" size="sm" className="w-full border-white/10 text-muted-foreground hover:text-foreground">
+                <LogOut className="w-4 h-4 mr-2" /> Sign out
+              </Button>
+            </SignOutButton>
+          )}
         </div>
       </aside>
 
@@ -209,11 +220,17 @@ export function Layout({ children }: LayoutProps) {
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          {guestPreview ? (
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={exitGuestPreview}>
               <LogOut className="w-4 h-4" />
             </Button>
-          </SignOutButton>
+          ) : (
+            <SignOutButton redirectUrl={import.meta.env.BASE_URL}>
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </SignOutButton>
+          )}
         </div>
       </header>
 
