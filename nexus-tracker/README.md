@@ -1,7 +1,21 @@
 # Tauri + React + Typescript
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This template should help get you started developing with Tauri, React and Typescript in Vite to run the time tracking app.
 
-## Recommended IDE Setup
+# Recommended to Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Installations
+Git <br>
+Node.js <br>
+Pnpm (npm install -g pnpm) <br>
+Rust <br>
+
+# To Lauch
+Clone the repo <br>
+install pnpm install in the root <br>
+go to cd nexus-tracker <br>
+run pnpm dev -> pnpm tauri build 
+
+# For any question, ask the owner. Happy Gaming Piraters!
+
+
